@@ -7,6 +7,9 @@ using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Channels;
+using System.Text.RegularExpressions;
+using static System.Net.Mime.MediaTypeNames;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace TicTacToe
 {
@@ -16,10 +19,12 @@ namespace TicTacToe
         /// <summary>
         /// Variables for game
         /// </summary>
+       // static char[] spaces = new char[] { '1', '2', '3', '4', '5', '6', '7', '8', '9' };
         static char[] spaces = new char[] { '1', '2', '3', '4', '5', '6', '7', '8', '9' };
         static int player = 1;
         static int choice;
         static int flag;
+        static int openSpots = 9;
 
         /// <summary>
         /// Draws the game board
@@ -75,10 +80,8 @@ namespace TicTacToe
             {
                 return -1;
             }
-            else
-            {
-                return 0;
-            }
+
+            return 0;
         }
 
         /// <summary>
@@ -108,11 +111,11 @@ namespace TicTacToe
             flag = 0;
             spaces = new char[] { '1', '2', '3', '4', '5', '6', '7', '8', '9' };
             player = 1;
-            gameLoop();
+            openSpots = 9;
         }
 
         /// <summary>
-        /// Resets the game to start again or exits
+        /// Resets the game to start again or exit
         /// </summary>
         static void NewGame()
         {
@@ -127,7 +130,7 @@ namespace TicTacToe
             else
             {
                 Console.WriteLine("\n Thanks for playing!");
-                Thread.Sleep(1000);
+                Thread.Sleep(5000);
                 Console.Clear();
                 userChoice = "";
             }
@@ -155,7 +158,9 @@ namespace TicTacToe
 
         static void MarkSpot(int choice)
         {
-            if (spaces[choice] != 'X' && spaces[choice] != 'O')
+            Debug.Assert(openSpots > 0);
+            
+            if (openSpots > 0 && spaces[choice] != 'X' && spaces[choice] != 'O')
             {
                 if (player % 2 == 0)
                 {
@@ -166,6 +171,7 @@ namespace TicTacToe
                     DrawX(choice);
                 }
                 player++;
+                openSpots--;
 
                 Thread.Sleep(1000);
                 Console.Clear();
@@ -177,41 +183,32 @@ namespace TicTacToe
             {
                 Console.WriteLine("Sorry the row {0} is already marked with {1} \n", choice + 1, spaces[choice]);
                 Console.WriteLine("Please wait while the board is loading again...");
-                Thread.Sleep(1000);
+                Thread.Sleep(5000);
             }
         }
 
         static void RandomMarkSpot(int choice)
         {
-            if(choice <= 8)
+            if (spaces[choice] != 'X' && spaces[choice] != 'O')
             {
-                if (spaces[choice] != 'X' && spaces[choice] != 'O')
-                {
-                    System.Diagnostics.Debug.WriteLine("You didn't enter a value, so I used a random value of " + choice + ".");
-                    Console.WriteLine("You didn't enter a value, so I used a random value of " + choice + ".");
-                    choice = choice - 1;
-                    MarkSpot(choice);
-                }
-                else
-                {
-                    Random rnd = new Random();
-                    int RandomDefault = rnd.Next(1, 9);
-                    choice = RandomDefault;
-
-                    System.Diagnostics.Debug.WriteLine("You didn't enter a value, so I used a random value of " + choice + ".");
-                    Console.WriteLine("You didn't enter a value, so I used a random value of " + choice + ".");
-                    choice = choice - 1;
-                    MarkSpot(choice);
-                }
-            }
-            if (choice == 9)
-            {
-                choice = choice - 1;
-                System.Diagnostics.Debug.WriteLine("You didn't enter a value, so I used a random value of " + choice + ".");
-                Console.WriteLine("You didn't enter a value, so I used a random value of " + choice + ".");
-                choice = choice - 1;
+                System.Diagnostics.Debug.WriteLine("You didn't enter a value, so I used a random value of " + (choice + 1) + ".");
+                Console.WriteLine("You didn't enter a value, so I used a random value of " + (choice + 1) + ".");
                 MarkSpot(choice);
             }
+            else
+            {
+                Random rnd = new Random();
+                do{
+                    choice = rnd.Next(0, 9);
+                } while (spaces[choice] == 'X' || spaces[choice] == 'O');
+
+                if (spaces[choice] != 'X' && spaces[choice] != 'O')
+                {
+                    System.Diagnostics.Debug.WriteLine("You didn't enter a value, so I used a random value of " + (choice + 1) + ".");
+                    Console.WriteLine("You didn't enter a value, so I used a random value of " + (choice + 1) + ".");
+                    MarkSpot(choice);
+                }                        
+            }           
         }
 
         /// <summary>
@@ -244,36 +241,40 @@ namespace TicTacToe
                 //Accept user's input for their turn
                 string? userPosition = Console.ReadLine();
 
+                //New regex that allows testing number is from 1-9
+                Regex regex = new Regex("[1-9]");
+
+                //Test the user input is a number from 1 - 9
+                bool validPlay = regex.IsMatch(userPosition!); 
+
                 // Assign default value if userPosition is null or empty
-                if (!int.TryParse(userPosition, out int RandomDefault))
+                if (!validPlay)
                 {
-                    //Variable to take random turn if user does not enter a number
-                    Random rnd = new Random();
-                    RandomDefault = rnd.Next(1, 9);
-                    RandomMarkSpot(RandomDefault);                    
+                    if (!int.TryParse(userPosition, out int RandomDefault))
+                    {
+                        //Variable to take random turn if user does not enter a number
+                        Random rnd = new Random();
+                        RandomDefault = rnd.Next(0, 9);
+                        RandomMarkSpot(RandomDefault);
+                    }
                 }
 
                 // Try to convert the result string to an integer
-                if (int.TryParse(userPosition, out int result))
+                if (validPlay)
                 {
-
-                    if (result != 0)
+                    if (int.TryParse(userPosition, out int result))
                     {
-                        System.Diagnostics.Debug.WriteLine("You entered " + result + " for your turn.");
-                        Console.WriteLine("You entered " + result + " for your turn.");
-                        Thread.Sleep(0500);
+                        if (result != 0)
+                        {
+                            Debug.WriteLine("You entered " + result + " for your turn.");
+                            Console.WriteLine("You entered " + result + " for your turn.");
+                            Thread.Sleep(1000);
 
-                        choice = result - 1;
-                        MarkSpot(choice);
+                            choice = result - 1;
+                            MarkSpot(choice);
+                        }
                     }
-
-                }
-                /* else
-                    {
-                        System.Diagnostics.Debug.WriteLine("Invalid input. Please try again and enter a valid number for your turn.");
-                        Console.WriteLine("Invalid input. Please try again and enter a valid number for your turn.");
-                    } */
-
+                } 
             }
         }
     
@@ -284,8 +285,7 @@ namespace TicTacToe
         /// <param name="args"></param>
         public static void Main(string[] args)
         {
-            gameLoop();
-        }
-        
+           gameLoop();
+        }        
     }
 }
